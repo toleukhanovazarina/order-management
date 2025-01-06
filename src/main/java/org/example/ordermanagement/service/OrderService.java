@@ -15,6 +15,8 @@ public interface OrderService {
     @Transactional
     OrderDTO updateOrder(Long orderId, OrderRequest orderRequest);
 
+    OrderDTO getOrderById(Long orderId);
+
     // Получение заказов с фильтрацией для админа
     Page<OrderDTO> getOrdersForAdmin(String status, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable);
 

@@ -53,6 +53,19 @@ public class OrderController {
         }
     }
 
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderDTO> getOrderById(@PathVariable Long orderId) {
+        Map<String, String> userData = receiveToken.tokenData();
+
+        try {
+            OrderDTO order = orderService.getOrderById(orderId);
+            return ResponseEntity.ok(order);
+        } catch (Exception ex) {
+            log.error("Error getting order ID {}: {}", orderId, ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @PostMapping
     public ResponseEntity<?> createOrder(@RequestBody OrderRequest request) {
         Map<String, String> userData = receiveToken.tokenData();

@@ -115,6 +115,16 @@ public class OrderServiceImpl implements OrderService {
                 });
     }
 
+    @Override
+    public OrderDTO getOrderById(Long orderId) {
+        Order order = findByIdOrThrow(
+                orderRepository.findById(orderId),
+                "Order not found with ID: {}",
+                orderId
+        );
+        return OrderDTO.fromEntity(order);
+    }
+
 
     @Override
     public Page<OrderDTO> getOrdersForAdmin(String status, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
@@ -136,11 +146,11 @@ public class OrderServiceImpl implements OrderService {
     public void softDeleteOrder(Long orderId) {
         log.info("Soft deleting order with ID: {}", orderId);
 
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> {
-                    log.error("Order not found for deletion with ID: {}", orderId);
-                    return new IllegalArgumentException("Order not found with ID: " + orderId);
-                });
+        Order order = findByIdOrThrow(
+                orderRepository.findById(orderId),
+                "Order not found with ID: {}",
+                orderId
+        );
 
         order.setIsDeleted(true);
         order.setDeletedDate(LocalDateTime.now());
