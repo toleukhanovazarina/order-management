@@ -13,6 +13,8 @@ import org.example.ordermanagement.db.repository.ProductRepository;
 import org.example.ordermanagement.dto.request.OrderRequest;
 import org.example.ordermanagement.dto.response.OrderDTO;
 import org.example.ordermanagement.service.OrderService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -32,26 +34,26 @@ public class OrderServiceImpl implements OrderService {
     private final ProductRepository productRepository;
     private final UserRepository customerRepository;
 
+    private static final Logger actionLogger = LoggerFactory.getLogger("org.example.ordermanagement.actions");
+
     @Override
     @Transactional
     public OrderDTO createOrder(OrderRequest orderRequest, Long customerId) {
         log.info("Creating order for customer ID: {}", customerId);
+        actionLogger.info("Action: CreateOrder - CustomerID: {}", customerId);
 
-        // Проверка клиента
         String customerName = findCustomerNameById(customerId);
         log.debug("Customer name resolved: {}", customerName);
 
-        // Получение продуктов
         List<Product> products = findProductsByIds(orderRequest.getProductIds());
         log.debug("Products resolved: {}", products);
 
-        // Вычисление общей стоимости
         BigDecimal totalPrice = calculateTotalPrice(products);
         log.debug("Total price calculated: {}", totalPrice);
 
-        // Создание заказа
         Order order = buildOrder(products, totalPrice, customerName);
         log.info("Order created with ID: {}", order.getId());
+        actionLogger.info("Action: OrderCreated - OrderID: {}, CustomerID: {}", order.getId(), customerId);
 
         return OrderDTO.fromEntity(order);
     }
@@ -66,29 +68,82 @@ public class OrderServiceImpl implements OrderService {
         return orderRepository.save(order);
     }
 
+
     @Override
     @Transactional
     public OrderDTO updateOrder(Long orderId, OrderRequest orderRequest) {
         log.info("Updating order with ID: {}", orderId);
+        actionLogger.info("Action: UpdateOrder - OrderID: {}", orderId);
 
-        // Проверка существования заказа
         Order order = findByIdOrThrow(
                 orderRepository.findById(orderId),
                 "Order not found with ID: {}",
                 orderId
         );
 
-        // Обновление полей заказа
         updateField(order::setCustomerName, findCustomerNameById(orderRequest.getCustomerId()));
         updateField(order::setProducts, findProductsByIds(orderRequest.getProductIds()));
         order.setUpdatedDate(LocalDateTime.now());
         log.debug("Order fields updated for ID: {}", orderId);
 
-        // Сохранение изменений
         Order updatedOrder = orderRepository.save(order);
         log.info("Order updated successfully for ID: {}", orderId);
+        actionLogger.info("Action: OrderUpdated - OrderID: {}", orderId);
 
         return OrderDTO.fromEntity(updatedOrder);
+    }
+
+    @Override
+    public OrderDTO getOrderById(Long orderId) {
+        log.info("Fetching order by ID: {}", orderId);
+        actionLogger.info("Action: GetOrderById - OrderID: {}", orderId);
+
+        Order order = findByIdOrThrow(
+                orderRepository.findById(orderId),
+                "Order not found with ID: {}",
+                orderId
+        );
+
+        return OrderDTO.fromEntity(order);
+    }
+
+    @Override
+    public Page<OrderDTO> getOrdersForAdmin(String status, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
+        log.info("Fetching orders for admin with filters - Status: {}, MinPrice: {}, MaxPrice: {}", status, minPrice, maxPrice);
+        actionLogger.info("Action: GetOrdersForAdmin - Status: {}, MinPrice: {}, MaxPrice: {}", status, minPrice, maxPrice);
+
+        return orderRepository.findFilteredOrders(status, minPrice, maxPrice, pageable)
+                .map(OrderDTO::fromEntity);
+    }
+
+    @Override
+    public Page<OrderDTO> getOrdersForCustomer(Long customerId, String status, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
+        String customerName = findCustomerNameById(customerId);
+        log.info("Fetching orders for customer: {} with filters - Status: {}, MinPrice: {}, MaxPrice: {}", customerName, status, minPrice, maxPrice);
+        actionLogger.info("Action: GetOrdersForCustomer - CustomerID: {}, Status: {}, MinPrice: {}, MaxPrice: {}", customerId, status, minPrice, maxPrice);
+
+        return orderRepository.findFilteredOrdersForCustomer(customerName, status, minPrice, maxPrice, pageable)
+                .map(OrderDTO::fromEntity);
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteOrder(Long orderId) {
+        log.info("Soft deleting order with ID: {}", orderId);
+        actionLogger.info("Action: SoftDeleteOrder - OrderID: {}", orderId);
+
+        Order order = findByIdOrThrow(
+                orderRepository.findById(orderId),
+                "Order not found with ID: {}",
+                orderId
+        );
+
+        order.setIsDeleted(true);
+        order.setDeletedDate(LocalDateTime.now());
+        orderRepository.save(order);
+
+        log.info("Order soft deleted successfully for ID: {}", orderId);
+        actionLogger.info("Action: OrderSoftDeleted - OrderID: {}", orderId);
     }
 
     private List<Product> findProductsByIds(List<Long> productIds) {
@@ -114,51 +169,6 @@ public class OrderServiceImpl implements OrderService {
                     return new IllegalArgumentException("Customer not found with ID: " + customerId);
                 });
     }
-
-    @Override
-    public OrderDTO getOrderById(Long orderId) {
-        Order order = findByIdOrThrow(
-                orderRepository.findById(orderId),
-                "Order not found with ID: {}",
-                orderId
-        );
-        return OrderDTO.fromEntity(order);
-    }
-
-
-    @Override
-    public Page<OrderDTO> getOrdersForAdmin(String status, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
-        log.info("Fetching orders for admin with filters - Status: {}, MinPrice: {}, MaxPrice: {}", status, minPrice, maxPrice);
-        return orderRepository.findFilteredOrders(status, minPrice, maxPrice, pageable)
-                .map(OrderDTO::fromEntity);
-    }
-
-    @Override
-    public Page<OrderDTO> getOrdersForCustomer(Long customerId, String status, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
-        String customerName = findCustomerNameById(customerId);
-        log.info("Fetching orders for customer: {} with filters - Status: {}, MinPrice: {}, MaxPrice: {}", customerName, status, minPrice, maxPrice);
-        return orderRepository.findFilteredOrdersForCustomer(customerName, status, minPrice, maxPrice, pageable)
-                .map(OrderDTO::fromEntity);
-    }
-
-    @Override
-    @Transactional
-    public void softDeleteOrder(Long orderId) {
-        log.info("Soft deleting order with ID: {}", orderId);
-
-        Order order = findByIdOrThrow(
-                orderRepository.findById(orderId),
-                "Order not found with ID: {}",
-                orderId
-        );
-
-        order.setIsDeleted(true);
-        order.setDeletedDate(LocalDateTime.now());
-        orderRepository.save(order);
-
-        log.info("Order soft deleted successfully for ID: {}", orderId);
-    }
-
 
     public static <T> T findByIdOrThrow(Optional<T> optionalEntity, String errorMessage, Object... logParams) {
         return optionalEntity.orElseThrow(() -> {
