@@ -7,6 +7,7 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.security.Key;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.example.ordermanagement.db.entity.Admin;
 import org.example.ordermanagement.db.entity.Customer;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +33,18 @@ public class JwtService {
      */
     public String extractUserName(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    /**
+     * Извлечение токена
+     */
+
+    public String extractJwtToken(HttpServletRequest request){
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer")){
+            return bearerToken.substring(7);
+        }
+        return null;
     }
 
     /**
