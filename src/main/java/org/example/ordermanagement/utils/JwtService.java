@@ -8,8 +8,7 @@ import io.jsonwebtoken.security.Keys;
 import java.security.Key;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.example.ordermanagement.db.entity.Admin;
-import org.example.ordermanagement.db.entity.Customer;
+import org.example.ordermanagement.db.entity.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -71,25 +70,10 @@ public class JwtService {
      */
     public String generateToken(UserDetails userDetails){
         Map<String,Object> claims = new HashMap<>();
-        if (userDetails instanceof Customer customUserDetails){
+        if (userDetails instanceof User customUserDetails){
             claims.put("id",customUserDetails.getId());
             claims.put("role",customUserDetails.getRole());
             claims.put("username",customUserDetails.getUsername());
-        }
-        return generateToken(claims,userDetails);
-    }
-
-    /**
-     * Генерация токена админа
-     *
-     * @param userDetails данные пользователя
-     * @return токен
-     */
-    public String generateTokenAdmin(UserDetails userDetails){
-        Map<String,Object> claims = new HashMap<>();
-        if (userDetails instanceof Admin customUserDetails){
-            claims.put("id",customUserDetails.getId());
-            claims.put("role",customUserDetails.getRole());
         }
         return generateToken(claims,userDetails);
     }

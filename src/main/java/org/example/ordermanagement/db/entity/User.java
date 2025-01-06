@@ -1,10 +1,7 @@
 package org.example.ordermanagement.db.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.example.ordermanagement.db.enums.Role;
 import org.springframework.security.core.GrantedAuthority;
@@ -16,12 +13,11 @@ import java.util.List;
 
 @Entity
 @SuperBuilder
-@Getter
-@Setter
+@Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "admins")
-public class Admin implements UserDetails {
+@Table(name = "customers")
+public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

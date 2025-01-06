@@ -1,10 +1,8 @@
 package org.example.ordermanagement.utils;
 
 import lombok.RequiredArgsConstructor;
-import org.example.ordermanagement.db.entity.Admin;
-import org.example.ordermanagement.db.entity.Customer;
-import org.example.ordermanagement.db.repository.AdminRepository;
-import org.example.ordermanagement.db.repository.CustomerRepository;
+import org.example.ordermanagement.db.entity.User;
+import org.example.ordermanagement.db.repository.UserRepository;
 import org.example.ordermanagement.dto.request.SignInRequest;
 import org.example.ordermanagement.dto.response.JwtAuthenticationResponse;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -16,8 +14,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthenticationService {
     private final JwtService jwtService;
-    private final AdminRepository adminRepository;
-    private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     /**
@@ -29,15 +26,9 @@ public class AuthenticationService {
     public JwtAuthenticationResponse signIn(SignInRequest request) {
         try {
             String username = request.getUsername();
-            Customer customer = customerRepository.findByUsername(username);
-            if (customer != null && passwordEncoder.matches(request.getPassword(), customer.getPassword())) {
-                var jwt = jwtService.generateToken(customer);
-                return new JwtAuthenticationResponse(jwt, "Success");
-            }
-
-            Admin admin = adminRepository.findByUsername(username);
-            if (admin != null && passwordEncoder.matches(request.getPassword(), admin.getPassword())) {
-                var jwt = jwtService.generateTokenAdmin(admin);
+            User user = userRepository.findByUsername(username);
+            if (user != null && passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                var jwt = jwtService.generateToken(user);
                 return new JwtAuthenticationResponse(jwt, "Success");
             }
 
