@@ -1,6 +1,7 @@
 package org.example.ordermanagement.utils;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.ordermanagement.db.entity.User;
 import org.example.ordermanagement.db.repository.UserRepository;
 import org.example.ordermanagement.dto.request.SignInRequest;
@@ -10,6 +11,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService {
@@ -24,19 +26,32 @@ public class AuthenticationService {
      * @return токен
      */
     public JwtAuthenticationResponse signIn(SignInRequest request) {
+        String username = request.getUsername();
+        log.info("Authentication attempt for username: {}", username);
+
         try {
-            String username = request.getUsername();
             User user = userRepository.findByUsername(username);
-            if (user != null && passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-                var jwt = jwtService.generateToken(user);
-                return new JwtAuthenticationResponse(jwt, "Success");
+            if (user == null) {
+                log.warn("User not found for username: {}", username);
+                throw new BadCredentialsException("Invalid username or password");
             }
 
-            throw new BadCredentialsException("Invalid username or password");
+            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                log.warn("Invalid password for username: {}", username);
+                throw new BadCredentialsException("Invalid username or password");
+            }
+
+            String jwt = jwtService.generateToken(user);
+            log.info("Authentication successful for username: {}", username);
+            return new JwtAuthenticationResponse(jwt, "Success");
+
         } catch (BadCredentialsException ex) {
+            log.error("Authentication failed for username: {}. Reason: {}", username, ex.getMessage());
             return new JwtAuthenticationResponse(null, "Invalid username or password");
+        } catch (Exception ex) {
+            log.error("Unexpected error during authentication for username: {}. Reason: {}", username, ex.getMessage(), ex);
+            return new JwtAuthenticationResponse(null, "Authentication failed due to an unexpected error");
         }
     }
-
 }
 

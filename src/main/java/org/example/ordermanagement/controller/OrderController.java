@@ -1,5 +1,9 @@
 package org.example.ordermanagement.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.ordermanagement.dto.request.OrderRequest;
@@ -16,15 +20,22 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/orders")
 @RequiredArgsConstructor
-@Slf4j
+@Tag(name = "Orders", description = "API для управления заказами")
 public class OrderController {
 
     private final OrderService orderService;
     private final ReceiveToken receiveToken;
 
+    @Operation(summary = "Получить список заказов", description = "Получение заказов с фильтрацией по статусу, цене и пагинацией.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Успешное получение заказов"),
+            @ApiResponse(responseCode = "403", description = "Доступ запрещён для текущей роли"),
+            @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера")
+    })
     @GetMapping
     public ResponseEntity<Page<OrderDTO>> getOrders(
             @RequestParam(required = false) String status,
@@ -53,10 +64,14 @@ public class OrderController {
         }
     }
 
+    @Operation(summary = "Получить заказ по ID", description = "Получение данных конкретного заказа по его идентификатору.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Успешное получение заказа"),
+            @ApiResponse(responseCode = "404", description = "Заказ не найден"),
+            @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера")
+    })
     @GetMapping("/{orderId}")
     public ResponseEntity<OrderDTO> getOrderById(@PathVariable Long orderId) {
-        Map<String, String> userData = receiveToken.tokenData();
-
         try {
             OrderDTO order = orderService.getOrderById(orderId);
             return ResponseEntity.ok(order);
@@ -66,6 +81,13 @@ public class OrderController {
         }
     }
 
+    @Operation(summary = "Создать заказ", description = "Создание нового заказа.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Заказ успешно создан"),
+            @ApiResponse(responseCode = "400", description = "Некорректные данные"),
+            @ApiResponse(responseCode = "403", description = "Доступ запрещён для текущей роли"),
+            @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера")
+    })
     @PostMapping
     public ResponseEntity<?> createOrder(@RequestBody OrderRequest request) {
         Map<String, String> userData = receiveToken.tokenData();
@@ -94,6 +116,12 @@ public class OrderController {
         }
     }
 
+    @Operation(summary = "Обновить заказ", description = "Обновление данных существующего заказа.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Заказ успешно обновлён"),
+            @ApiResponse(responseCode = "404", description = "Заказ не найден"),
+            @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера")
+    })
     @PutMapping("/{orderId}")
     public ResponseEntity<OrderDTO> updateOrder(@PathVariable Long orderId, @RequestBody OrderRequest request) {
         try {
@@ -105,6 +133,12 @@ public class OrderController {
         }
     }
 
+    @Operation(summary = "Удалить заказ", description = "Мягкое удаление заказа по его идентификатору.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Заказ успешно удалён"),
+            @ApiResponse(responseCode = "403", description = "Доступ запрещён для текущей роли"),
+            @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера")
+    })
     @DeleteMapping("/{orderId}")
     public ResponseEntity<Void> softDeleteOrder(@PathVariable Long orderId) {
         Map<String, String> userData = receiveToken.tokenData();
