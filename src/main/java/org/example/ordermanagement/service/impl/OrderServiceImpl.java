@@ -13,6 +13,7 @@ import org.example.ordermanagement.db.repository.ProductRepository;
 import org.example.ordermanagement.dto.request.OrderRequest;
 import org.example.ordermanagement.dto.response.OrderDTO;
 import org.example.ordermanagement.service.OrderService;
+import org.example.ordermanagement.utils.EntityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -22,8 +23,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
-import java.util.function.Consumer;
 
 @Service
 @RequiredArgsConstructor
@@ -71,38 +70,53 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderDTO updateOrder(Long orderId, OrderRequest orderRequest) {
+    public OrderDTO updateOrder(Long orderId, OrderRequest orderRequest, boolean isAdmin) {
         log.info("Updating order with ID: {}", orderId);
-        actionLogger.info("Action: UpdateOrder - OrderID: {}", orderId);
+        actionLogger.info("Action: UpdateOrder - OrderID: {}, IsAdmin: {}", orderId, isAdmin);
 
-        Order order = findByIdOrThrow(
-                orderRepository.findById(orderId),
-                "Order not found with ID: {}",
-                orderId
-        );
+        Order order = fetchOrderById(orderId);
 
-        updateField(order::setCustomerName, findCustomerNameById(orderRequest.getCustomerId()));
-        updateField(order::setProducts, findProductsByIds(orderRequest.getProductIds()));
+        if (isAdmin) {
+            updateOrderAsAdmin(order, orderRequest);
+        } else {
+            updateOrderAsClient(order, orderRequest);
+        }
+
         order.setUpdatedDate(LocalDateTime.now());
         log.debug("Order fields updated for ID: {}", orderId);
 
         Order updatedOrder = orderRepository.save(order);
         log.info("Order updated successfully for ID: {}", orderId);
-        actionLogger.info("Action: OrderUpdated - OrderID: {}", orderId);
+        actionLogger.info("Action: OrderUpdated - OrderID: {}, IsAdmin: {}", orderId, isAdmin);
 
         return OrderDTO.fromEntity(updatedOrder);
     }
+
+
+    private void updateOrderAsAdmin(Order order, OrderRequest orderRequest) {
+        EntityUtil.updateField(order::setCustomerName, findCustomerNameById(orderRequest.getCustomerId()));
+        EntityUtil.updateField(order::setProducts, findProductsByIds(orderRequest.getProductIds()));
+        EntityUtil.updateField(order::setTotalPrice, orderRequest.getTotalPrice());
+        EntityUtil.updateField(order::setStatus, orderRequest.getStatus());
+        log.debug("Admin updated fields for order ID: {}", order.getId());
+    }
+
+    private void updateOrderAsClient(Order order, OrderRequest orderRequest) {
+        if (!OrderStatus.Cancelled.equals(orderRequest.getStatus())) {
+            log.warn("RoleClient tried to update order ID {} to status {}", order.getId(), orderRequest.getStatus());
+            throw new IllegalArgumentException("RoleClient can only update the status to 'Canceled'");
+        }
+        order.setStatus(OrderStatus.Cancelled);
+        log.debug("Client updated status to 'Canceled' for order ID: {}", order.getId());
+    }
+
 
     @Override
     public OrderDTO getOrderById(Long orderId) {
         log.info("Fetching order by ID: {}", orderId);
         actionLogger.info("Action: GetOrderById - OrderID: {}", orderId);
 
-        Order order = findByIdOrThrow(
-                orderRepository.findById(orderId),
-                "Order not found with ID: {}",
-                orderId
-        );
+        Order order = fetchOrderById(orderId);
 
         return OrderDTO.fromEntity(order);
     }
@@ -132,11 +146,7 @@ public class OrderServiceImpl implements OrderService {
         log.info("Soft deleting order with ID: {}", orderId);
         actionLogger.info("Action: SoftDeleteOrder - OrderID: {}", orderId);
 
-        Order order = findByIdOrThrow(
-                orderRepository.findById(orderId),
-                "Order not found with ID: {}",
-                orderId
-        );
+        Order order = fetchOrderById(orderId);
 
         order.setIsDeleted(true);
         order.setDeletedDate(LocalDateTime.now());
@@ -170,16 +180,12 @@ public class OrderServiceImpl implements OrderService {
                 });
     }
 
-    public static <T> T findByIdOrThrow(Optional<T> optionalEntity, String errorMessage, Object... logParams) {
-        return optionalEntity.orElseThrow(() -> {
-            log.error(errorMessage, logParams);
-            return new IllegalArgumentException(String.format(errorMessage, logParams));
-        });
-    }
 
-    public static <T> void updateField(Consumer<T> setter, T value) {
-        if (value != null) {
-            setter.accept(value);
-        }
+    private Order fetchOrderById(Long orderId) {
+        return EntityUtil.findByIdOrThrow(
+                orderRepository.findById(orderId),
+                "Order not found with ID: {}",
+                orderId
+        );
     }
 }

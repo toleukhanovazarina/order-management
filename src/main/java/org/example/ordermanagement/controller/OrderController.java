@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.ordermanagement.dto.request.OrderRequest;
 import org.example.ordermanagement.dto.response.OrderDTO;
 import org.example.ordermanagement.service.OrderService;
-import org.example.ordermanagement.utils.ReceiveToken;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -18,17 +17,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.util.Map;
 
 @Slf4j
 @RestController
 @RequestMapping("/orders")
 @RequiredArgsConstructor
 @Tag(name = "Orders", description = "API для управления заказами")
-public class OrderController {
+public class OrderController extends BaseController {
 
     private final OrderService orderService;
-    private final ReceiveToken receiveToken;
 
     @Operation(summary = "Получить список заказов", description = "Получение заказов с фильтрацией по статусу, цене и пагинацией.")
     @ApiResponses({
@@ -42,7 +39,6 @@ public class OrderController {
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @PageableDefault Pageable pageable) {
-        Map<String, String> userData = receiveToken.tokenData();
         String role = userData.get("role");
 
         try {
@@ -67,6 +63,7 @@ public class OrderController {
     @Operation(summary = "Получить заказ по ID", description = "Получение данных конкретного заказа по его идентификатору.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Успешное получение заказа"),
+            @ApiResponse(responseCode = "403", description = "Доступ запрещён для текущей роли"),
             @ApiResponse(responseCode = "404", description = "Заказ не найден"),
             @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера")
     })
@@ -90,7 +87,6 @@ public class OrderController {
     })
     @PostMapping
     public ResponseEntity<?> createOrder(@RequestBody OrderRequest request) {
-        Map<String, String> userData = receiveToken.tokenData();
         String role = userData.get("role");
 
         try {
@@ -119,14 +115,29 @@ public class OrderController {
     @Operation(summary = "Обновить заказ", description = "Обновление данных существующего заказа.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Заказ успешно обновлён"),
+            @ApiResponse(responseCode = "403", description = "Доступ запрещён для текущей роли"),
             @ApiResponse(responseCode = "404", description = "Заказ не найден"),
             @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера")
     })
     @PutMapping("/{orderId}")
     public ResponseEntity<OrderDTO> updateOrder(@PathVariable Long orderId, @RequestBody OrderRequest request) {
+        String role = userData.get("role");
+
         try {
-            OrderDTO updatedOrder = orderService.updateOrder(orderId, request);
+            OrderDTO updatedOrder;
+            if ("RoleAdmin".equals(role)) {
+                updatedOrder = orderService.updateOrder(orderId, request, true);
+            } else if ("RoleClient".equals(role)) {
+                updatedOrder = orderService.updateOrder(orderId, request, false);
+            } else {
+                log.warn("Unauthorized access attempt for updating order ID: {}", orderId);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
             return ResponseEntity.ok(updatedOrder);
+        } catch (IllegalArgumentException ex) {
+            log.error("Order not found for ID {}: {}", orderId, ex.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception ex) {
             log.error("Error updating order ID {}: {}", orderId, ex.getMessage(), ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -141,7 +152,6 @@ public class OrderController {
     })
     @DeleteMapping("/{orderId}")
     public ResponseEntity<Void> softDeleteOrder(@PathVariable Long orderId) {
-        Map<String, String> userData = receiveToken.tokenData();
         String role = userData.get("role");
 
         if (!"RoleAdmin".equals(role)) {

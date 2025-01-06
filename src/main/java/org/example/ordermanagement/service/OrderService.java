@@ -13,14 +13,12 @@ public interface OrderService {
     OrderDTO createOrder(OrderRequest orderRequest, Long customerId);
 
     @Transactional
-    OrderDTO updateOrder(Long orderId, OrderRequest orderRequest);
+    OrderDTO updateOrder(Long orderId, OrderRequest orderRequest, boolean isAdmin);
 
     OrderDTO getOrderById(Long orderId);
 
-    // Получение заказов с фильтрацией для админа
     Page<OrderDTO> getOrdersForAdmin(String status, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable);
 
-    // Получения заказов пользователя
     Page<OrderDTO> getOrdersForCustomer(Long customerId, String status, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable);
 
     @Transactional
