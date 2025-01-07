@@ -20,7 +20,7 @@ Order Management Service — это Spring Boot приложение для уп
 - Java 17+
 - Maven 3.8+
 - PostgreSQL 12+
-- Docker** (для запуска)
+- Docker** (для запуска через контейнеры)
 
 ---
 
