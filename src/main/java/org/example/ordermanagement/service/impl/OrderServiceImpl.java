@@ -16,6 +16,9 @@ import org.example.ordermanagement.service.OrderService;
 import org.example.ordermanagement.utils.EntityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -37,6 +40,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
+    @CachePut(value = "orders", key = "#result.orderId")
     public OrderDTO createOrder(OrderRequest orderRequest, Long customerId) {
         log.info("Creating order for customer ID: {}", customerId);
         actionLogger.info("Action: CreateOrder - CustomerID: {}", customerId);
@@ -70,6 +74,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "orders", key = "#orderId")
     public OrderDTO updateOrder(Long orderId, OrderRequest orderRequest, boolean isAdmin) {
         log.info("Updating order with ID: {}", orderId);
         actionLogger.info("Action: UpdateOrder - OrderID: {}, IsAdmin: {}", orderId, isAdmin);
@@ -112,6 +117,7 @@ public class OrderServiceImpl implements OrderService {
 
 
     @Override
+    @Cacheable(value = "orders", key = "#orderId")
     public OrderDTO getOrderById(Long orderId) {
         log.info("Fetching order by ID: {}", orderId);
         actionLogger.info("Action: GetOrderById - OrderID: {}", orderId);
@@ -142,6 +148,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "orders", key = "#orderId")
     public void softDeleteOrder(Long orderId) {
         log.info("Soft deleting order with ID: {}", orderId);
         actionLogger.info("Action: SoftDeleteOrder - OrderID: {}", orderId);
